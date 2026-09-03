@@ -1,40 +1,23 @@
--- Creates the sales fact table.
--- One row represents one invoice line / one purchased track.
+-- Shows revenue by genre per customer country.
 
-CREATE TABLE IF NOT EXISTS workspace.d3_mart.fact_sales AS
 SELECT
-    -- Degenerate and dimension keys
-    il.invoice_line_id,
-    il.invoice_id,
-    c.customer_id,
-    d.date_key,
-    t.track_id,
-    e.employee_key,
+    c.country,
+    t.genre_name,
+    SUM(f.quantity) AS units_sold,
+    SUM(f.line_amount) AS revenue,
+    COUNT(DISTINCT f.invoice_id) AS invoice_count
+FROM workspace.d3_mart.fact_sales f
 
-    -- Measures
-    il.quantity,
-    CAST(il.unit_price AS DECIMAL(10, 2)) AS unit_price,
-    CAST(il.quantity * il.unit_price AS DECIMAL(12, 2)) AS line_amount,
+INNER JOIN workspace.d3_mart.dim_track t
+    ON f.track_id = t.track_id
 
-    -- Mart metadata
-    CURRENT_DATE() AS mart_load_date,
-    CURRENT_TIMESTAMP() AS mart_entry_date
+INNER JOIN workspace.d3_mart.dim_customer c
+    ON f.customer_id = c.customer_id
 
-FROM workspace.d3_clean.invoice_line_clean il
+GROUP BY
+    c.country,
+    t.genre_name
 
-LEFT JOIN workspace.d3_clean.invoice_clean i
-    ON il.invoice_id = i.invoice_id
-
-LEFT JOIN workspace.d3_mart.dim_customer c
-    ON i.customer_id = c.customer_id
-
-LEFT JOIN workspace.d3_mart.dim_date d
-    ON i.invoice_date = d.full_date
-
-LEFT JOIN workspace.d3_mart.dim_track t
-    ON il.track_id = t.track_id
-
-LEFT JOIN workspace.d3_mart.dim_employee e
-    ON c.support_rep_id = e.employee_id
-
-WHERE il.invoice_line_id IS NOT NULL;
+ORDER BY
+    c.country,
+    revenue DESC;
